@@ -522,3 +522,303 @@ MyNet(
   )
 )
 同前面的文章，这里在每一个包装块里面，各个层是没有名称的，默认按照0、1、2、3、4来排名。
+
+(2)方式二：
+
+import torch.nn as nn
+from collections import OrderedDict
+class MyNet(nn.Module):
+      def __init__(self):
+          super(MyNet,self).__init__()
+          self.conv_block=nn.Sequential(
+            OrderDict(
+              [
+                ("conv1",nn.Conv2d(3,32,3,1,1)),
+                ("relu1",nn.ReLU()),
+                ("pool",nn.MaxPool2d(2))
+
+              ]))
+          self.dense_block=nn.Sequential(
+            OrderDict(
+              [
+                ("dense1",nn.Linear(32*3*3),128),
+                ("relu2",nn.ReLU()),
+                ("dense2",nn.Linear(128,10))
+              ]))
+      def forward(self,x):
+          conv_out=self.conv_block(x)
+          res=conv_out.view(conv_out.size(0),-1)
+          out=self.dense_block(res)
+          return out
+
+
+model=MyNet()
+print(model)
+
+'''运行结果为：
+MyNet(
+  (conv_block): Sequential(
+    (conv1): Conv2d(3, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+    (relu1): ReLU()
+    (pool): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+  )
+  (dense_block): Sequential(
+    (dense1): Linear(in_features=288, out_features=128, bias=True)
+    (relu2): ReLU()
+    (dense2): Linear(in_features=128, out_features=10, bias=True)
+  )
+)
+
+（3）方式三：
+import torch.nn as nn
+from collections import OrderedDict
+class MyNet(nn.Module):
+      def __init__(self):
+          super(MyNet,self).__init__()
+          self.conv_block=torch.nn.Sequential()
+          self.conv_block.add_module('conv1',torch.nn.Conv2d(3,32,3,1,1))
+          self.conv_block.add_module('relu1',torch.nn.ReLU())
+          self.conv_block.add_module('pool1',torch.nn.MaxPool2d(2))
+
+          self.dense_block=torch.nn.Sequential()
+          self.dense_block.add_module('dense1',torch.nn.Linear(32*3*3,128))
+          self.dense_block.add_module("relu2",torch.nn.ReLU())
+          self.dense_block.add_module("dense2",torch.nn.Linear(128,10))
+
+      def forward(self,x):
+          conv_out=self.conv_block(x)
+          res=conv_out.view(conv_out.size(0),-1)
+          out=self.dense_block(res)
+          return out
+
+model=MyNet()
+print(model)
+
+'''运行结果为：
+MyNet(
+  (conv_block): Sequential(
+    (conv1): Conv2d(3, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+    (relu1): ReLU()
+    (pool1): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+  )
+  (dense_block): Sequential(
+    (dense1): Linear(in_features=288, out_features=128, bias=True)
+    (relu2): ReLU()
+    (dense2): Linear(in_features=128, out_features=10, bias=True)
+  )
+)
+
+上面的方式二和方式三，在每一个包装块里面，每个层都是有名称的
+
+3.2 Module类的几个常用方法使用
+特别注意：Sequential类虽然继承自Module类，二者有相似部分，但是也有很多不同的部分，集中体现在：
+Sequential类实现了整数索引，故而可以使用model[index]这样的方式获取一个层，但是Module类并没有实现整数索引，不能够通过整数索引来获得层，那该怎么办呢？它提供了几个主要的方法，如下：
+
+def children(self):
+
+def named_children(self):
+
+def modules(self):
+
+def named_modules(self,memo=None,prefix='')
+
+这几个方法返回的都是一个Iterator迭代器，故而通过for循环访问，当然也可以通过next
+
+下面就以上面的构建的网络为例子来说明
+
+（1）model.children()方法
+import torch.nn as nn
+from collections import OrderedDict
+
+class MyNet(nn.Module):
+    def __init__(self):
+        super(MyNet, self).__init__()
+        self.conv_block=torch.nn.Sequential()
+        self.conv_block.add_module("conv1",torch.nn.Conv2d(3, 32, 3, 1, 1))
+        self.conv_block.add_module("relu1",torch.nn.ReLU())
+        self.conv_block.add_module("pool1",torch.nn.MaxPool2d(2))
+ 
+        self.dense_block = torch.nn.Sequential()
+        self.dense_block.add_module("dense1",torch.nn.Linear(32 * 3 * 3, 128))
+        self.dense_block.add_module("relu2",torch.nn.ReLU())
+        self.dense_block.add_module("dense2",torch.nn.Linear(128, 10))
+ 
+    def forward(self, x):
+        conv_out = self.conv_block(x)
+        res = conv_out.view(conv_out.size(0), -1)
+        out = self.dense_block(res)
+        return out
+
+model=MyNet()
+for i in model.children():
+    print(i)
+    print(type(i))
+
+
+'''运行结果为：
+Sequential(
+  (conv1): Conv2d(3, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+  (relu1): ReLU()
+  (pool1): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+)
+<class 'torch.nn.modules.container.Sequential'>
+Sequential(
+  (dense1): Linear(in_features=288, out_features=128, bias=True)
+  (relu2): ReLU()
+  (dense2): Linear(in_features=128, out_features=10, bias=True)
+)
+<class 'torch.nn.modules.container.Sequential'>
+
+(2)model.named_children()方法
+for i in model.named_children():
+    print(i)
+    print(type(i))
+
+
+'''运行结果为：
+('conv_block', Sequential(
+  (conv1): Conv2d(3, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+  (relu1): ReLU()
+  (pool1): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+))
+<class 'tuple'>
+('dense_block', Sequential(
+  (dense1): Linear(in_features=288, out_features=128, bias=True)
+  (relu2): ReLU()
+  (dense2): Linear(in_features=128, out_features=10, bias=True)
+))
+<class 'tuple'>
+
+总结：
+（1）model.children()和model.named_children()方法返回的是迭代器iterator;
+(2)model.children():每一次迭代返回的每一个元素实际上是Sequential类型，而Sequential类型又可以使用下标index索引来获取每一个Sequential里面的具体层,比如conv层、dense层等；
+（3）model.named_children():每一次迭代返回的每一个元素实际上是一个元组类型，元组的第一个元素是名称，第二个元素就是对应的层或者是Sequential。
+
+(3)model.modules()方法
+for i in model.modules():
+    print(i)
+    print("=========================================")
+
+'''运行结果为：
+MyNet(
+  (conv_block): Sequential(
+    (conv1): Conv2d(3, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+    (relu1): ReLU()
+    (pool1): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+  )
+  (dense_block): Sequential(
+    (dense1): Linear(in_features=288, out_features=128, bias=True)
+    (relu2): ReLU()
+    (dense2): Linear(in_features=128, out_features=10, bias=True)
+  )
+)
+==================================================
+Sequential(
+  (conv1): Conv2d(3, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+  (relu1): ReLU()
+  (pool1): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+)
+==================================================
+Conv2d(3, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+==================================================
+ReLU()
+==================================================
+MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+==================================================
+Sequential(
+  (dense1): Linear(in_features=288, out_features=128, bias=True)
+  (relu2): ReLU()
+  (dense2): Linear(in_features=128, out_features=10, bias=True)
+)
+==================================================
+Linear(in_features=288, out_features=128, bias=True)
+==================================================
+ReLU()
+==================================================
+Linear(in_features=128, out_features=10, bias=True)
+==================================================
+
+(4) model.named_modules()方法
+for i in model.named_modules():
+    print(i)
+    print("=========================================")
+
+'''运行结果是：
+('', MyNet(
+  (conv_block): Sequential(
+    (conv1): Conv2d(3, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+    (relu1): ReLU()
+    (pool1): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+  )
+  (dense_block): Sequential(
+    (dense1): Linear(in_features=288, out_features=128, bias=True)
+    (relu2): ReLU()
+    (dense2): Linear(in_features=128, out_features=10, bias=True)
+  )
+))
+==================================================
+('conv_block', Sequential(
+  (conv1): Conv2d(3, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+  (relu1): ReLU()
+  (pool1): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+))
+==================================================
+('conv_block.conv1', Conv2d(3, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)))
+==================================================
+('conv_block.relu1', ReLU())
+==================================================
+('conv_block.pool1', MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False))
+==================================================
+('dense_block', Sequential(
+  (dense1): Linear(in_features=288, out_features=128, bias=True)
+  (relu2): ReLU()
+  (dense2): Linear(in_features=128, out_features=10, bias=True)
+))
+==================================================
+('dense_block.dense1', Linear(in_features=288, out_features=128, bias=True))
+==================================================
+('dense_block.relu2', ReLU())
+==================================================
+('dense_block.dense2', Linear(in_features=128, out_features=10, bias=True))
+==================================================
+
+总结：
+（1）model.modules()和model.named_modules()方法返回的是迭代器iterator;
+(2)model的modules()方法和named_modules()方法都会将整个模型的所有构成(包括包装层、单独的层、自定义层等)由浅入深依次遍历出来，只不过modules()返回的每一个元素是直接返回的层对象本身，而named_modules()返回的每一个元素是一个元组，第一个元素是名称，第二个元素才是层对象本身。
+（3）如何理解children和modules之间的这种差异性。注意pytorch里面不管是模型、层、激活函数、损失函数都可以当成Module的拓展，所以modules和named_modules会层层迭代，由浅入深，将每一个自定义块block、然后block里面的每一个层都当成是modules来迭代。而children就比较直观，就表示的是所谓的"孩子"，所以没有层层迭代深入。
+
+注意：上面这四个方法是以层包装为例来说明的，如果没有层的包装，我们依然可以使用这四个方法，其实结果也是类似的这样去推，这里就不再列出来了。
+
+# pytorch教程之nn.Module类详解——使用Module类来自定义模型
+https://blog.csdn.net/qq_27825451/article/details/90550890
+前言：pytorch中对于一般的序列模型，直接使用torch.nn.Sequential类可以实现，但是更多的时候面对复杂的模型，比如：多输入多输出、多分支模型、跨层连接模型、带有自定义层的模型等，就需要自己来定义一个模型了。
+一、torch.nn.Module类概述
+pytorch不像tensorflow那么底层，也不像keras那么高层，这里先比较keras和pytorch的一些小区别。
+（1）keras更常见的操作是通过继承Layer类来实现自定义层，不推荐去继承Model类定义模型
+(2)pytorch中其实一般没有特别明显的Layer和Moduel的区别，不管是自定义层、自定义块、自定义模型，都是通过继承Module类完成的，这一点很重要。其实Sequential类也是继承自Module类的。
+注意：我们当然也可以直接通过继承torch.autograd.Function类来自定义一个层，但是这很不推荐，不提倡，初步原因是需要自己管理parameter
+总结：pytorch里面一切自定义操作基本上都是继承nn.Module类来实现的
+
+二、torch.nn.Module类的简介
+先来简单看一下它的定义：
+class Module(object):
+      def __init__(self):
+      def forward(self,*input):
+
+      def add_module(self,name,module):
+      def cuda(self,device=None):
+      def cpu(self):
+      def __call__(self,*input,**kwargs):
+      def parameters(self,recurse=True):
+      def named_parameters(self,prefix='',recurse=True):
+      def children(self):
+      def named_children(self):
+      def modules(self):
+      def named_modules(self,memo=None,prefix=''):
+      def train(self,mode=True):
+      def eval(self):
+      def zero_grad(self):
+      def __repr__(self):
+      def __dir__(self):
+
+还有很多没列出来
