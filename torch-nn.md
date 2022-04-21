@@ -77,7 +77,7 @@ y_output: tensor([[-0.2892, -0.3084,  0.9027]], grad_fn=<AddmmBackward>)
 
 第三章 nn.functional(常见函数)
 
-3.1 nn.functional概述
+## 3.1 nn.functional概述
 
 nn.functional定义了创建神经网络所需要的一些常见的处理函数。如没有激活函数的神经元，各种激活函数等。
 nn.functional
@@ -88,7 +88,7 @@ nn.functional.xxx无法与nn.Sequential结合使用
 没有学习参数的（eg,maxpool,loss_func,activate func）等根据个人选择使用nn.functional.xxx或nn.Xxx
 需要特别注意dropout层
 
-3.2 nn.functional函数分类
+# 3.2 nn.functional函数分类
 nn.functional包括神经网络前向和后向处理所需要的常见函数。
 （1）神经元处理函数
 （2）激活函数
@@ -96,7 +96,7 @@ nn.functional包括神经网络前向和后向处理所需要的常见函数。
 3.3 激活函数的案例
 （1） relu案例
 
-# nn.functional.relu()
+## nn.functional.relu()
 print(y_output)
 out=nn.functional.relu(y_output)
 print(out.shape)
@@ -148,7 +148,7 @@ out_features的数量，决定了全连接层中神经元的个数，因为每�
 总的参数（W和B）的个数=（in_features+1）*out_features
 
 # 5.3 使用参数创建全连接层代码案例
-# nn.functional.linear()
+### nn.functional.linear()
 x_input=torch.Tensor([1.,1.,1.])
 print("x.input.shape:",x_input.shape)
 print("x.input:",x_input)
@@ -384,3 +384,141 @@ tensor([[-0.3095,  0.3118,  0.3795, -0.2508,  0.1127, -0.2721, -0.3563,  0.3058,
           0.5193,  0.0436],
         [-0.2070,  0.6417,  0.2125, -0.0413,  0.0827,  0.2448, -0.0399,  0.2837,
           0.0052, -0.1834]], grad_fn=<AddmmBackward>)
+
+
+# 2、pytorch教程之nn.Module类详解——使用Module类来自定义模型
+https://blog.csdn.net/qq_27825451/article/details/90550890
+
+import torch
+import torch.nn
+
+class MyNet(nn.Module):
+      def __init__(self):
+        super(MyNet,self).__init__()  # 调用父类的构造函数
+        self.conv1=torch.nn.Conv2d(3,32,3,1,1)
+        self.relu1=nn.ReLU()
+        self.maxpooling1=nn.MaxPool2d(2,1)
+      
+        self.conv2=nn.Conv2d(3,32,3,1,1)
+        self.relu2=nn.ReLU()
+        self.maxpooling2=nn.MaxPool2d(2,1)
+
+        self.dense1=nn.Linear(32*3*3,128)
+        self.dense2=nn.Linear(128,10)
+      
+      def forward(self,x):
+          x=self.conv1(x)
+          x=self.relu1(x)
+          x=self.max_pooling1(x)
+          x=self.conv2(x)
+          x=self.relu2(x)
+          x=self.max_pooling2(x)
+          x=self.dense1(x)
+          x=self.dense(x)
+          return x
+
+model=MyNet()
+print(model)
+
+
+'''运行结果为：
+MyNet(
+  (conv1): Conv2d(3, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+  (relu1): ReLU()
+  (max_pooling1): MaxPool2d(kernel_size=2, stride=1, padding=0, dilation=1, ceil_mode=False)
+  (conv2): Conv2d(3, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+  (relu2): ReLU()
+  (max_pooling2): MaxPool2d(kernel_size=2, stride=1, padding=0, dilation=1, ceil_mode=False)
+  (dense1): Linear(in_features=288, out_features=128, bias=True)
+  (dense2): Linear(in_features=128, out_features=10, bias=True)
+)
+
+注意：上面的是将所有的层都放在了构造函数__init__里面，但是只是定义了一系列的层，各个层之间到底是什么连接关系并没有，
+而是在forward里面实现所有层的连接关系，当然这里依然是顺序连接的。下面再来看一下一个例子：
+
+import torch
+import torch.nn.functional as F
+
+class MyNet(torch.nn.Module):
+      def __init__(self):
+          super(MyNet,self).__init__()  # 第一句话，调用父类的构造函数
+          self.conv1=torch.nn.Conv2d(3,32,3,1,1)
+          slef.conv2=torch.nn.Conv2d(3,32,3,1,1)
+
+          self.dense1=torch.nn.Linear(32*3*3,128)
+          self.dense2=torch.nn.Linear(128,10)
+
+      def forward(self,x):
+          x=self.conv1(x)
+          x=F.relu(x)
+          x=F.max_pool2d(x)
+          x=self.conv2(x)
+          x=F.relu(x)
+          x=F.max_pool2d(x)
+          x=self.dense1(x)
+          x=self.dense2(x)
+
+model=MyNet()
+print(model)
+
+运行结果为：
+MyNet(
+  (conv1): Conv2d(3, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+  (conv2): Conv2d(3, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+  (dense1): Linear(in_features=288, out_features=128, bias=True)
+  (dense2): Linear(in_features=128, out_features=10, bias=True)
+)
+
+注意：此时，将没有训练参数的层没有放在构造函数里面了，所以这些层就不会出现在model里面，但是运行关系是在forward里面通过functional的方法实现的。
+
+总结：所有放在构造函数__init__里面的层的都是这个模型的“固有属性”.
+
+# 三、torch.nn.Module类的多种实现
+上面是为了一个简单的演示，但是Module类是非常灵活的，可以有很多灵活的实现方式，下面将一一介绍
+
+3.1 通过Sequential来包装层
+将几个层包装在一起作为一个大的层（块），前面的一篇文章详细介绍了Sequential类的使用，包括常见的三种方式，以及每一种方式的优缺点，参见：https://blog.csdn.net/qq_27825451/article/details/90551513
+
+所以这里对层的包装当然也可以通过这三种方式了。
+（1）方式一：
+import torch.nn as nn
+from collections import OrderDict
+class MyNet(nn.Module):
+    def __init__(self):
+        super(MyNet,self).__init__()
+        self.conv_block=nn.Sequential(
+          nn.Conv2d(3,32,3,1,1),
+          nn.ReLU(),
+          nn.MaxPool2d(2))
+
+        self.dense_block=nn.Sequential(
+          nn.Linear(32*3*3，128),
+          nn.ReLU(),
+          nn.Linear(128,10)
+        )
+      
+    #在这里实现层之间的连接关系，其实就是所谓的前向传播
+
+    def forward(self,x):
+        conv_out=self.conv_block(x)
+        res=conv_out.view(conv_out.size(0),-1)
+        out=self.dense_block(res)
+        return out
+
+model=MyNet()
+print(model)
+
+'''运行结果为：
+MyNet(
+  (conv_block): Sequential(
+    (0): Conv2d(3, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+    (1): ReLU()
+    (2): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+  )
+  (dense_block): Sequential(
+    (0): Linear(in_features=288, out_features=128, bias=True)
+    (1): ReLU()
+    (2): Linear(in_features=128, out_features=10, bias=True)
+  )
+)
+同前面的文章，这里在每一个包装块里面，各个层是没有名称的，默认按照0、1、2、3、4来排名。
