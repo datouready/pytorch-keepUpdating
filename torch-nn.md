@@ -391,7 +391,9 @@ https://blog.csdn.net/qq_27825451/article/details/90550890
 
 # pytorch教程之nn.Module类详解——使用Module类来自定义模型
 https://blog.csdn.net/qq_27825451/article/details/90550890
-前言：pytorch中对于一般的序列模型，直接使用torch.nn.Sequential类可以实现，但是更多的时候面对复杂的模型，比如：多输入多输出、多分支模型、跨层连接模型、带有自定义层的模型等，就需要自己来定义一个模型了。
+
+前言：pytorch中对于一般的序列模型，直接使用torch.nn.Sequential类可以实现，但是更多的时候面对复杂的模型，
+比如：多输入多输出、多分支模型、跨层连接模型、带有自定义层的模型等，就需要自己来定义一个模型了。
 一、torch.nn.Module类概述
 pytorch不像tensorflow那么底层，也不像keras那么高层，这里先比较keras和pytorch的一些小区别。
 （1）keras更常见的操作是通过继承Layer类来实现自定义层，不推荐去继承Model类定义模型
@@ -426,13 +428,13 @@ class Module(object):
 我们在定义自己的网络的时候，需要继承nn.Module类，并重新实现构造函数__init__构造函数和forward这两个方法。但有一些注意技巧：
 （1）一般把网络中具有可学习参数的层（如全连接层、卷积层等）放在构造函数__init__()中，当然我也可以把不具有参数的层也放在里面；
 （2）一般把不具有可学习参数的层（如ReLU、dropout、BatchNormanation层）放在构造函数中，也可不放在构造函数中，如果不放在构造函数__init__里面，则在forward方法里面可以使用nn.functional来代替
-（3）forward方法是必须要重写的，它是实现模型的功能，实现各个层之间的连接关系的核心
+==（3）forward方法是必须要重写的，它是实现模型的功能，实现各个层之间的连接关系的核心 ==
 下面先看一个简单的例子
 import torch
 
 class MyNet(torch.nn.Module):
     def __init__(self):
-        super(MyNet,self).__init__()
+        super(MyNet,self).__init__()     #第一句话，调用父类的构造函数
         self.conv1=torch.nn.Conv2d(3,32,3,1,1)
         self.relu1=torch.nn.ReLU()
         self.max_pooling1=torch.nn.MaxPool2d(2,1)
@@ -471,7 +473,8 @@ MyNet(
   (dense2): Linear(in_features=128, out_features=10, bias=True)
 )
 
-注意：上面的是将所有的层都放在了构造函数__init__里面，但是只是定义了一系列的层，各个层之间到底是什么连接关系并没有，而是在forward里面实现所有层的连接关系，当然这里依然是顺序连接的。下面再来看一下一个例子：
+注意：上面的是将所有的层都放在了构造函数__init__里面，但是只是定义了一系列的层，各个层之间到底是什么连接关系并没有，
+而是在forward里面实现所有层的连接关系，当然这里依然是顺序连接的。下面再来看一下一个例子：
 
 import torch
 import torch.nn.functional as F
@@ -509,6 +512,7 @@ MyNet(
 )
 
 注意：此时，将没有训练参数的层没有放在构造函数里面了，所以这些层就不会出现在model里面，但是运行关系是在forward里面通过functional的方法实现的。
+注意：这里使用的torch.nn.functional.xxx函数，如果使用torch.nn.Xxx,也不会出现在model里面的,因为不属于模型的"固有属性
 总结：所有放在构造函数__init__里面的层都是这个模型的"固有属性"
 
 
@@ -592,7 +596,8 @@ MyNet(
   (dense2): Linear(in_features=128, out_features=10, bias=True)
 )
 
-注意：此时，将没有训练参数的层没有放在构造函数里面了，所以这些层就不会出现在model里面，但是运行关系是在forward里面通过functional的方法实现的。
+注意：此时，将没有训练参数的层没有放在构造函数里面了，所以这些层就不会出现在model里面，
+但是运行关系是在forward里面通过functional的方法实现的。
 
 总结：所有放在构造函数__init__里面的层的都是这个模型的“固有属性”.
 
@@ -912,3 +917,8 @@ for i in model.named_modules():
 
 注意：上面这四个方法是以层包装为例来说明的，如果没有层的包装，我们依然可以使用这四个方法，其实结果也是类似的这样去推，这里就不再列出来了。
 
+# 加载和保存模型
+net0=MyNet()
+torch.save(net0.state_dict(),"this is model_name")
+net1=Mynet()
+net1.load_state_dict(torch.load("this is model_name"))
